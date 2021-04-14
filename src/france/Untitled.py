@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 """
@@ -23,7 +23,7 @@ Requirements: please see the imports below (use pip3 to install them).
 """
 
 
-# In[2]:
+# In[1]:
 
 
 import pandas as pd
@@ -43,12 +43,33 @@ import locale
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
 
 
-# In[3]:
+# In[ ]:
 
 
 def import_df_age():
     df = pd.read_csv(PATH+"data/france/vaccin/vacsi-a-fra.csv", sep=";")
     return df
+
+
+# In[10]:
+
+
+df_new = pd.read_csv(PATH+"data/france/donnes-hospitalieres-covid19-nouveaux.csv", sep=";")
+df_clage = pd.read_csv(PATH+"data/france/donnes-hospitalieres-clage-covid19.csv", sep=";")
+
+
+# In[9]:
+
+
+df_new_france = df_new.groupby("jour").sum()
+df_new_france.sum()
+
+
+# In[32]:
+
+
+df_clage_france = df_clage.groupby(["jour", "cl_age90"]).sum().reset_index()
+df_clage_france[df_clage_france.jour=="2021-04-12"]
 
 
 # In[66]:

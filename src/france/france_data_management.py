@@ -43,8 +43,8 @@ def download_data():
     pbar.update(5)
     df_metadata = pd.read_csv(PATH + 'data/france/metadata.csv', sep=";")
     
-    url_data = df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-covid19")]["url"].values[0] #donnees-hospitalieres-classe-age-covid19-2020-10-14-19h00.csv 
-    url_data_new = df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-nouveaux")]["url"].values[0]
+    url_data = "https://www.data.gouv.fr/fr/datasets/r/63352e38-d353-4b54-bfd1-f1b3ee1cabd7" #df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-covid19")]["url"].values[0] #donnees-hospitalieres-classe-age-covid19-2020-10-14-19h00.csv 
+    url_data_new = "https://www.data.gouv.fr/fr/datasets/r/6fadff46-9efd-4c53-942a-54aca783c30c" #df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-nouveaux")]["url"].values[0]
     url_tests = df_metadata[df_metadata['url'].str.contains("/donnees-tests-covid19-labo-quotidien")]["url"].values[0]
     url_metropoles = df_metadata[df_metadata['url'].str.contains("/sg-metro-opendata")]["url"].max()
     url_incidence = df_metadata[df_metadata['url'].str.contains("/sp-pe-tb-quot")]["url"].values[0]
@@ -53,7 +53,7 @@ def download_data():
     
     url_sursaud = df_metadata[df_metadata['url'].str.contains("sursaud.*quot.*dep")]["url"].values[0]
     url_data_clage = df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-classe-age-covid19")]["url"].values[0]
-    url_data_sexe = df_metadata[df_metadata['url'].str.contains("/sp-pos-quot-fra")]["url"].values[0]
+    url_data_sexe = "https://www.data.gouv.fr/fr/datasets/r/dd0de5d9-b5a5-4503-930a-7b08dc0adc7c" #df_metadata[df_metadata['url'].str.contains("/sp-pos-quot-fra")]["url"].values[0]
 
         
     pbar.update(6)
@@ -319,6 +319,7 @@ def import_data_vue_ensemble():
     with open(PATH_STATS + 'vue-ensemble.json', 'w') as outfile:
         dict_data = {"cas":  int(df["total_cas_confirmes"].diff().values[-1]), "update": df.date.values[-1][-2:] + "/" + df.date.values[-1][-5:-3]}
         json.dump(dict_data, outfile)
+        
     return df
 
 def import_data_opencovid():
