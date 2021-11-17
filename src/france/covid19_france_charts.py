@@ -71,7 +71,7 @@ except:
 
 # # Data download and import
 
-# In[5]:
+# In[4]:
 
 
 import time
@@ -96,19 +96,27 @@ while not success:
 
 # ## Data transformations
 
-# In[6]:
+# In[5]:
 
 
 df, df_confirmed, dates, df_new, df_tests, df_deconf, df_sursaud, df_incid, df_tests_viros = data.import_data()
 
 
-# In[7]:
+# In[6]:
 
 
 data.download_data_vue_ensemble()
 df_vue_ensemble = data.import_data_vue_ensemble()
+df_vue_ensemble.loc[df_vue_ensemble.date >= "2021-05-21", "total_cas_confirmes"] += 346000
 
 df_opencovid = data.import_data_opencovid()
+
+
+# In[7]:
+
+
+df_sexes = data.import_data_df()
+df_sexes_tot = df_sexes[df_sexes.sexe==0]
 
 
 # In[8]:
@@ -122,6 +130,7 @@ df_incid_fra = df_incid_fra_clage[df_incid_fra_clage["cl_age90"]==0]
 
 
 df_new_france = df_new.groupby(["jour"]).sum().reset_index()
+df_new_france = data.import_data_new().groupby("jour").sum().reset_index()
 
 df_clage = data.import_data_hosp_clage()
 df_clage_france = df_clage.groupby(["jour", "cl_age90"]).sum().reset_index()
@@ -176,7 +185,7 @@ df_france_last15 = df_france[ df_france["jour"].isin(dates[-19:]) ]
 df_tests_tot_last15 = df_tests_tot[ df_tests_tot["jour"].isin(dates[-19:]) ]
 
 
-# In[168]:
+# In[11]:
 
 
 """y = np.array(np.log([3.3, 14.7, 22.5, 41])).reshape(-1, 1)
@@ -283,7 +292,7 @@ fig.write_image(PATH + "images/charts/france/proportion_variants.jpeg", scale=2,
 """
 
 
-# In[76]:
+# In[12]:
 
 
 def nbWithSpaces(nb):
@@ -298,7 +307,7 @@ def nbWithSpaces(nb):
         return str_nb
 
 
-# In[77]:
+# In[13]:
 
 
 departements_name = {}
@@ -312,47 +321,63 @@ for dep in departements:
         departements_name[dep] = "St-Pierre-et-Miquelon"
 
 
-# In[78]:
+# In[ ]:
+
+
+
+
+
+# In[14]:
 
 
 def objectif_deconfinement():
     dict_json = {}
+    n = 70
     
     ## HOSP
     struct = {"dates": [], "values": []}
-    n = 40
     dict_json["hosp"] = struct
-    dict_json["hosp"]["values"] = [int(x) for x in df_france["hosp"].values[-n:]]
+    dict_json["hosp"]["values"] = [float(round(x, 1)) for x in df_france["hosp"].values[-n:]]
     dict_json["hosp"]["dates"] = list(df_france["jour"].values[-n:])
+    
+    ## HOSP ADM
+    struct = {"dates": [], "values": []}
+    dict_json["adm_hosp"] = struct
+    dict_json["adm_hosp"]["values"] = [float(round(x, 1))for x in df_new_france["incid_hosp"].rolling(window=7).mean().dropna(0).values[-n:]]
+    dict_json["adm_hosp"]["dates"] = list(df_new_france["jour"].values[-n:])
     
     ## REA
     struct = {"dates": [], "values": []}
-    n = 40
     dict_json["rea"] = struct
-    dict_json["rea"]["values"] = [int(x) for x in df_france["rea"].values[-n:]]
+    dict_json["rea"]["values"] = [float(round(x, 1)) for x in df_france["rea"].values[-n:]]
     dict_json["rea"]["dates"] = list(df_france["jour"].values[-n:])
+    
+    ## REA ADM
+    struct = {"dates": [], "values": []}
+    dict_json["adm_rea"] = struct
+    dict_json["adm_rea"]["values"] = [float(round(x, 1)) for x in df_new_france["incid_rea"].rolling(window=7).mean().dropna(0).values[-n:]]
+    dict_json["adm_rea"]["dates"] = list(df_new_france["jour"].values[-n:])
     
     ## DC
     struct = {"dates": [], "values": []}
-    n = 40
     dict_json["dc"] = struct
-    dict_json["dc"]["values"] = [int(x) for x in df_france["dc"].diff().rolling(window=7).mean().values[-n:]]
+    dict_json["dc"]["values"] = [float(round(x, 1)) for x in df_new_france["incid_dc"].rolling(window=7).mean().fillna(0).values[-n:]]
     dict_json["dc"]["dates"] = list(df_france["jour"].values[-n:])
     
     ## Cas
     struct = {"date": "", "values": []}
     dict_json["cas"] = struct
-    cas_rolling = df_incid_france["P"].rolling(window=7, center=False).mean().dropna()
+    cas_rolling = df_incid_fra["P"].rolling(window=7, center=False).mean().dropna()
     
-    dict_json["cas"]["values"] = [int(x) for x in cas_rolling.values[-n:]]
-    dict_json["cas"]["dates"] = list(df_incid_france.loc[cas_rolling.index.values[-n:], "jour"])
+    dict_json["cas"]["values"] = [float(round(x, 1)) for x in cas_rolling.values[-n:]]
+    dict_json["cas"]["dates"] = list(df_incid_fra.loc[cas_rolling.index.values[-n:], "jour"])
     
     ## Cas date publication
     struct = {"date": "", "values": []}
     dict_json["cas_spf"] = struct
     cas_rolling = df_vue_ensemble["total_cas_confirmes"].diff().rolling(window=7, center=False).mean().fillna(0)
     
-    dict_json["cas_spf"]["values"] = [int(x) for x in cas_rolling.values[-n:]]
+    dict_json["cas_spf"]["values"] = [float(round(x, 1)) for x in cas_rolling.values[-n:]]
     dict_json["cas_spf"]["dates"] = list(df_vue_ensemble.loc[cas_rolling.index.values[-n:], "date"])
 
     with open(PATH_STATS + 'objectif_deconfinement.json', 'w') as outfile:
@@ -361,10 +386,10 @@ def objectif_deconfinement():
 objectif_deconfinement()
 
 
-# In[79]:
+# In[15]:
 
 
-def stats_immunite_collective(): 
+"""def stats_immunite_collective(): 
     dict_json = {}
     
     coef_mortalite=[]
@@ -396,10 +421,10 @@ def stats_immunite_collective():
         
     return list(pop_immun_france), immun_deps
     
-pop_immun_france, pop_immun_deps = stats_immunite_collective()
+pop_immun_france, pop_immun_deps = stats_immunite_collective()"""
 
 
-# In[12]:
+# In[16]:
 
 
 import random
@@ -415,7 +440,7 @@ for idx, death in enumerate(df_new_france["incid_dc"].rolling(window=7).mean().d
     
 
 
-# In[16]:
+# In[17]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -456,7 +481,7 @@ fig.update_layout(
 fig.write_image(PATH + "images/charts/france/points_deces.jpeg", scale=4, width=800, height=350)
 
 
-# In[82]:
+# In[18]:
 
 
 """clrs_sun_ref = ["#3c0000", "#4c0000", "#6a0000", "#840000", "#a00000", "#c40001", "#d50100", "#e20001", "#f50e07", "#f95228", "#fb9449", "#98ac3b", "#118408"]
@@ -489,10 +514,10 @@ fig.update_layout(margin = dict(t=0, l=0, r=0, b=0))
 """
 
 
-# In[83]:
+# In[19]:
 
 
-fig = go.Figure()
+"""fig = go.Figure()
 deps_legend = [departements_name[departements[i]] + " (" + departements[i] + ") " for i in range(len(departements)-3, -1, -1)] + ["<b>France </b>"]
 values = [pop_immun_deps[i][-1] for i in range(len(pop_immun_deps)-1, -1, -1)] + [pop_immun_france[-1]]
 labels = [str(int(round(value))) + "%" for value in values]
@@ -563,10 +588,10 @@ fig.add_annotation(dict(
 
 fig.write_image(PATH + "images/charts/france/immunite.jpeg", scale=2, width=800, height=2000)
 
-#fig.show()
+#fig.show()"""
 
 
-# In[84]:
+# In[20]:
 
 
 def stats_dep_vague(nb_first_values):
@@ -620,10 +645,10 @@ def stats_dep_vague(nb_first_values):
 stats_dep_vague(len(dates)-1)
 
 
-# In[169]:
+# In[21]:
 
 
-def caracterisation_valeur(valeur, valeur_j1, seuils=[1, 2, 3]):
+def caracterisation_valeur(valeur, valeur_j1, seuils=[1, 2, 3], step=0.02):
     caract= ""
     
     if valeur > seuils[2]:
@@ -637,7 +662,7 @@ def caracterisation_valeur(valeur, valeur_j1, seuils=[1, 2, 3]):
         
     caract += " "
     
-    if abs(valeur-valeur_j1) <= 0.02*valeur:
+    if abs(valeur-valeur_j1) <= step*valeur:
         caract += "ET STABLE"
     elif valeur<valeur_j1:
         caract += "ET EN BAISSE"
@@ -647,8 +672,7 @@ def caracterisation_valeur(valeur, valeur_j1, seuils=[1, 2, 3]):
     return caract
 
 
-# In[170]:
-
+# In[22]:
 
 
 df_temp = df_new[["jour", "incid_dc", "incid_hosp", "incid_rea", "departmentName", "dep", "departmentPopulation"]][ df_new["jour"] >= dates[-14]]
@@ -658,98 +682,108 @@ df_dep_tests = df_tests_viros_departements[df_tests_viros_departements["departme
 df_dep_tests["P"].values[-7:].sum()/df_dep_tests["pop"].values[0]*100000
 
 
-# In[171]:
+# In[23]:
 
 
 data.download_data_variants_deps()
 df_variants = data.import_data_variants_deps()
 
 
-# In[172]:
+# In[24]:
+
+
+df_new["departmentPopulation"]
+
+
+# In[25]:
+
 
 
 df_tests_viros_france = df_tests_viros.groupby(['jour', 'cl_age90']).sum().reset_index()
-        
+
 def incidence_deps_data():
     incidence_departements = {}
-    
+
     with open(PATH_STATS + 'incidence_departements.json', 'r') as f:
         incidence_departements = json.load(f)
-    
+
     departements_noms = list(dict.fromkeys(list(df['departmentName'].values))) 
     dict_json = {"liste_departements": [], "donnees_departements": {}, "donnees_france": {}, "date_donnees": dates_incid[-1][-2:]+"/"+dates_incid[-1][-5:-3], "date_update": dates[-1][-2:]+"/"+dates[-1][-5:-3]}
-    
-    
+
+
     df_temp = df_new[["jour", "incid_dc", "incid_hosp", "incid_rea", "departmentName", "dep", "departmentPopulation"]][ df_new["jour"] >= dates[-14]]
     df_temp_lits = df[["jour", "dc", "hosp", "rea", "departmentName", "dep", "departmentPopulation"]][ df["jour"] >= dates[-8]]
 
     df_tests_viros_departements = df_tests_viros[(df_tests_viros["jour"] >= dates_incid[-14]) & (df_tests_viros["cl_age90"]==0)].merge(df_temp[["dep", "departmentName"]], left_on="dep", right_on="dep")
     df_tests_viros_departements = df_tests_viros_departements.groupby(["dep", "jour"]).first().reset_index()
-    
+
     for dep in departements_noms:
         data_json = {"incidence_cas": 0, "incidence_hosp": 0, "lits_hosp": 0, "incidence_dc": 0, "incidence_dc_evol": 0, "lits_hosp_evol": 0, "incidence_rea": 0, "lits_rea": 0, "lits_rea_evol": 0, "population": 0, "taux_positivite": 0, "saturation_rea": incidence_departements["donnees_departements"][dep]["saturation_rea"]}
-        
+
         df_dep = df_temp[df_temp["departmentName"] == dep].reset_index()
         df_dep_tests = df_tests_viros_departements[df_tests_viros_departements["departmentName"] == dep].reset_index()
         df_dep_lits = df_temp_lits[df_temp_lits["departmentName"] == dep].reset_index()
         data_json["incidence_cas"] = int(np.round(df_dep_tests["P"].values[-7:].sum()/df_dep_tests["pop"].values[0]*100000))
         incidence_j7 = int(np.round(df_dep_tests["P"].values[-14:-7].sum()/df_dep_tests["pop"].values[0]*100000))
-        
+        if(incidence_j7 == 0):
+            incidence_j7 = 1
         data_json["incidence_evol"] = np.nan_to_num(round((data_json["incidence_cas"]-incidence_j7)/incidence_j7*100, 2))
         #data_json["incidence_evol_abs"] = np.nan_to_num(round((data_json["incidence_cas"]-incidence_j7), 2))
-        
+
         data_json["taux_positivite"] = np.round(df_dep_tests["P"].sum()/df_dep_tests["T"].sum()*100, 1)
-        
+
         dep_num = df_dep.dep.values[0]
         df_variants_dep = df_variants[df_variants.dep == dep_num]
-        data_json["var_uk"] = df_variants_dep.Prc_susp_501Y_V1.values[-1]
-        data_json["var_sa_bz"] = df_variants_dep.Prc_susp_501Y_V2_3.values[-1]
-        
-        data_json["incidence_hosp"] = round(df_dep["incid_hosp"].values[-7:].sum()/df_dep["departmentPopulation"].values[0]*100000, 3)
-        data_json["lits_hosp"] = round(df_dep_lits["hosp"].values[-1]/df_dep["departmentPopulation"].values[0]*100000, 2)
+        if(len(df_variants_dep)>0):
+            data_json["var_uk"] = 0 #df_variants_dep.Prc_susp_501Y_V1.values[-1]
+            data_json["var_sa_bz"] = 0 #df_variants_dep.Prc_susp_501Y_V2_3.values[-1]
+            data_json["var_c1"] = df_variants_dep.tx_C1.values[-1]
+
+        data_json["incidence_hosp"] = round((df_dep["incid_hosp"].values[-7:].sum()/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 3)
+        data_json["lits_hosp"] = round((df_dep_lits["hosp"].values[-1]/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 2)
         data_json["lits_hosp_evol"] = np.nan_to_num(round((df_dep_lits["hosp"].values[-1]-df_dep_lits["hosp"].values[-8])/df_dep_lits["hosp"].values[-8]*100, 2))
-        
-        data_json["incidence_rea"] = round(df_dep["incid_rea"].values[-7:].sum()/df_dep["departmentPopulation"].values[0]*100000, 3)
-        data_json["lits_rea"] = round(df_dep_lits["rea"].values[-1]/df_dep["departmentPopulation"].values[0]*100000, 2)
-        data_json["lits_rea_evol"] = np.nan_to_num(round((df_dep_lits["rea"].values[-1]-df_dep_lits["rea"].values[-8])/df_dep_lits["rea"].values[-8]*100, 2))
-            
-        data_json["incidence_dc"] = round(df_dep["incid_dc"].values[-7:].sum()/df_dep["departmentPopulation"].values[0]*100000, 3)
-        incidence_dc_j7 = round(df_dep["incid_dc"].values[-14:-7].sum()/df_dep["departmentPopulation"].values[0]*100000, 3)
+
+        data_json["incidence_rea"] = round((df_dep["incid_rea"].values[-7:].sum()/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 3)
+        data_json["lits_rea"] = round((df_dep_lits["rea"].values[-1]/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 2)
+        data_json["lits_rea_evol"] = np.nan_to_num(round(((df_dep_lits["rea"].values[-1]-df_dep_lits["rea"]).fillna(0).values[-8])/df_dep_lits["rea"].values[-8]*100, 2))
+
+        data_json["incidence_dc"] = round((df_dep["incid_dc"].values[-7:].sum()/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 3)
+        incidence_dc_j7 = round((df_dep["incid_dc"].values[-14:-7].sum()/df_dep["departmentPopulation"]).fillna(0).values[0]*100000, 3)
         data_json["incidence_dc_evol"] = np.nan_to_num(round((data_json["incidence_dc"]-incidence_dc_j7)/incidence_dc_j7*100, 2))
-        
+
         data_json["population"] = int(df_dep["departmentPopulation"].values[0])
-        
+
         dict_json["donnees_departements"][dep] = data_json
-        
+
     dict_json["liste_departements"] = departements_noms
-    
+
     # France
     data_json = {"incidence_cas": 0, "incidence_hosp": 0, "incidence_dc": 0, "population": 0}
-    
+
     df_temp = df_incid_fra[df_incid_fra["jour"] >= dates_incid[-7]]
     incidence = (df_temp["P"].sum()/67114995*100000) 
-    
+
     df_temp_j1 = df_incid_fra[(df_incid_fra["jour"] >= dates_incid[-8]) & (df_incid_fra["jour"] < dates_incid[-1])]
     incidence_j1 = (df_temp_j1["P"].sum()/67114995*100000) 
-    
+
     data_json["incidence_cas_str"] = caracterisation_valeur(incidence, incidence_j1, [50, 75, 200])
 
     data_json["incidence_cas"] = incidence
-    
-    df_temp = df_new_france[["jour", "incid_dc", "incid_hosp", "incid_rea", "departmentPopulation"]][ df_new_france["jour"] >= dates[-7]]
-    data_json["incidence_dc"] = df_temp["incid_dc"].sum()/df_temp["departmentPopulation"].values[0]*100000
-    data_json["incidence_hosp"] = df_temp["incid_hosp"].sum()/df_temp["departmentPopulation"].values[0]*100000
-    data_json["incidence_rea"] = df_temp["incid_rea"].sum()/df_temp["departmentPopulation"].values[0]*100000
+
+    df_temp = df_new_france[["jour", "incid_dc", "incid_hosp", "incid_rea"]][ df_new_france["jour"] >= dates[-7]]
+    data_json["incidence_dc"] = df_temp["incid_dc"].sum()/67114995*100000
+    data_json["incidence_hosp"] = df_temp["incid_hosp"].sum()/67114995*100000
+    data_json["incidence_rea"] = df_temp["incid_rea"].sum()/67114995*100000
     data_json["population"] = "67114995"
     dict_json["donnees_france"] = data_json
 
     with open(PATH_STATS + 'incidence_departements.json', 'w') as outfile:
         json.dump(dict_json, outfile)
-        
+
 incidence_deps_data()
 
 
-# In[173]:
+# In[26]:
 
 
 df_tests_viros_france = df_tests_viros.groupby(['jour', 'cl_age90']).sum().reset_index()
@@ -801,10 +835,10 @@ def incidence_regs_data():
     df_temp = df_incid_fra[df_incid_fra["jour"] >= dates_incid[-7]]
     data_json["incidence_cas"] = (df_temp["P"].sum()/67114995*100000)
     
-    df_temp = df_new_france[["jour", "incid_dc", "incid_hosp", "incid_rea", "departmentPopulation"]][ df_new_france["jour"] >= dates[-7]]
-    data_json["incidence_dc"] = df_temp["incid_dc"].sum()/df_temp["departmentPopulation"].values[0]*100000
-    data_json["incidence_hosp"] = df_temp["incid_hosp"].sum()/df_temp["departmentPopulation"].values[0]*100000
-    data_json["incidence_rea"] = df_temp["incid_rea"].sum()/df_temp["departmentPopulation"].values[0]*100000
+    df_temp = df_new_france[["jour", "incid_dc", "incid_hosp", "incid_rea"]][ df_new_france["jour"] >= dates[-7]]
+    data_json["incidence_dc"] = df_temp["incid_dc"].sum()/67114995*100000
+    data_json["incidence_hosp"] = df_temp["incid_hosp"].sum()/67114995*100000
+    data_json["incidence_rea"] = df_temp["incid_rea"].sum()/67114995*100000
     data_json["population"] = "67114995"
     dict_json["donnees_france"] = data_json
     print(data_json)
@@ -814,7 +848,7 @@ def incidence_regs_data():
 incidence_regs_data()
 
 
-# In[90]:
+# In[27]:
 
 
 """values = []
@@ -832,7 +866,7 @@ dates_temp
 values"""
 
 
-# In[91]:
+# In[28]:
 
 
 """fig = go.Figure()
@@ -853,7 +887,7 @@ fig.show()"""
 
 # ## Variation journée
 
-# In[92]:
+# In[29]:
 
 
 fig = go.Figure()
@@ -943,7 +977,7 @@ if show_charts:
 
 # ## Var jour lines
 
-# In[93]:
+# In[30]:
 
 
 
@@ -1191,7 +1225,7 @@ for (range_x, name_fig) in [(["2020-03-22", last_day_plot], "var_journ_lines")]:
         fig.show()
 
 
-# In[94]:
+# In[31]:
 
 
 """range_x, name_fig, range_y = ["2020-03-29", last_day_plot], "dc_journ", [0, df_new_france["incid_dc"].max()]
@@ -1440,7 +1474,7 @@ for i in ("", "log"):
         fig.show()"""
 
 
-# In[95]:
+# In[32]:
 
 
 range_x, name_fig, range_y = ["2020-03-10", last_day_plot], "dc_journ_croissance", [-100, 150]
@@ -1534,7 +1568,7 @@ if show_charts:
     fig.show()
 
 
-# In[96]:
+# In[33]:
 
 
 df_world_confirmed, df_world_deaths = pd.read_csv(PATH+'data/data_confirmed.csv'), pd.read_csv(PATH+'data/data_deaths.csv')
@@ -1546,7 +1580,7 @@ df_world_confirmed, df_world_deaths = pd.read_csv(PATH+'data/data_confirmed.csv'
 
 
 
-# In[97]:
+# In[34]:
 
 
 range_x, name_fig, range_y = ["2020-03-29", last_day_plot], "cas_est_journ", [0, df_world_deaths["France"].diff().max()/0.002*0.7]
@@ -1732,7 +1766,7 @@ if show_charts:
     fig.show()
 
 
-# In[98]:
+# In[35]:
 
 
 """
@@ -2024,7 +2058,7 @@ for i in ("", "log"):
         fig.show()"""
 
 
-# In[99]:
+# In[36]:
 
 
 """
@@ -2232,7 +2266,7 @@ for i in ("", "log"):
         fig.show()"""
 
 
-# In[100]:
+# In[37]:
 
 
 """
@@ -2440,7 +2474,7 @@ for i in ("", "log"):
         fig.show()"""
 
 
-# In[101]:
+# In[38]:
 
 
 range_x, name_fig = ["2020-03-10", last_day_plot], "rea_journ_croissance"
@@ -2533,7 +2567,7 @@ if show_charts:
     fig.show()
 
 
-# In[102]:
+# In[39]:
 
 
 df_temp = pd.read_csv(PATH+'data/france/data_stocks.csv', sep=";")
@@ -2541,13 +2575,13 @@ df_temp["jour"] = df_temp["jour"].replace("19-mars", "2020-03-19").replace("20-m
 df_temp.groupby("jour").sum()
 
 
-# In[103]:
+# In[40]:
 
 
 df_france
 
 
-# In[104]:
+# In[41]:
 
 
 """range_x, name_fig, range_y = ["2020-03-29", last_day_plot], "hosp_journ", [0, df_france["hosp"].max()*1.2]
@@ -2826,7 +2860,7 @@ for i in ("", "log"):
         fig.show()"""
 
 
-# In[105]:
+# In[42]:
 
 
 range_x, name_fig, range_y = ["2020-03-29", last_day_plot], "hosp_journ_flux", [0, df_new_france["incid_hosp"].max()*0.9]
@@ -3116,7 +3150,7 @@ for i in [""]:
         fig.show()
 
 
-# In[106]:
+# In[43]:
 
 
 range_x, name_fig = ["2020-03-10", last_day_plot], "hosp_journ_croissance"
@@ -3214,229 +3248,232 @@ if show_charts:
 
 
 
-# In[108]:
+# In[44]:
 
 
 #df_vue_ensemble=df_vue_ensemble.append({"date": "2021-03-20", "total_cas_confirmes": 4252022}, ignore_index=True)
 #df_vue_ensemble=df_vue_ensemble.append({"date": "2021-03-21", "total_cas_confirmes": 4282603}, ignore_index=True)
 
 
-# In[109]:
+# In[45]:
 
 
-suffixe=""
-for (date_deb, date_fin) in [("2020-01-18", datetime.strptime(df_vue_ensemble.date.max(), '%Y-%m-%d') + timedelta(days=4)), ("2020-01-18", datetime.strptime(df_vue_ensemble.date.max(), '%Y-%m-%d') + timedelta(days=4))]:
-    range_x, name_fig, range_y = [date_deb, date_fin], "cas_journ_spf"+suffixe, [0, df_vue_ensemble["total_cas_confirmes"].diff().max()*0.7]
-    
-    title = "<b>Cas positifs</b> au Covid19"
+try:
+    suffixe=""
+    for (date_deb, date_fin) in [("2020-01-18", datetime.strptime(df_vue_ensemble.date.max(), '%Y-%m-%d') + timedelta(days=4)), ("2020-01-18", datetime.strptime(df_vue_ensemble.date.max(), '%Y-%m-%d') + timedelta(days=4))]:
+        range_x, name_fig, range_y = [date_deb, date_fin], "cas_journ_spf"+suffixe, [0, df_vue_ensemble["total_cas_confirmes"].diff().max()*0.7]
 
-    #fig = go.Figure()
-    for i in ("", "log"):
-        if i=="log":
-            title += " [log.]"
-            range_y=[0, math.log(df_vue_ensemble["total_cas_confirmes"].diff().max())/2]
+        title = "<b>Cas positifs</b> au Covid19"
 
-        fig = make_subplots(rows=1, cols=1, shared_yaxes=True, subplot_titles=[""], vertical_spacing = 0.08, horizontal_spacing = 0.1, specs=[[{"secondary_y": True}]])
-        df_incid_france_cas_rolling = df_vue_ensemble["total_cas_confirmes"].diff().rolling(window=7, center=False).mean() #df_incid_france["P"].rolling(window=7, center=True).mean()
+        #fig = go.Figure()
+        for i in ("", "log"):
+            if i=="log":
+                title += " [log.]"
+                range_y=[0, math.log(df_vue_ensemble["total_cas_confirmes"].diff().max())/2]
 
-        fig.add_trace(go.Scatter(
-            x = df_vue_ensemble["date"],
-            y = df_incid_france_cas_rolling,
-            name = "Cas positifs (moyenne 7 j.)",
-            marker_color='rgb(8, 115, 191)',
-            line_width=8,
-            opacity=0.8,
-            fill='tozeroy',
-            fillcolor="rgba(8, 115, 191, 0.3)",
-            showlegend=True
-        ), secondary_y=True)
-        
-        fig.add_trace(go.Bar(
-            x = df_vue_ensemble["date"],
-            y = df_vue_ensemble["total_cas_confirmes"].diff(),
-            name = "Cas positifs (moyenne 7 j.)",
-            marker_color='rgb(8, 115, 191)',
-            #line_width=8,
-            opacity=0.3,
-            #fill='tozeroy',
-            #fillcolor="rgba(8, 115, 191, 0.3)",
-            showlegend=True
-        ), secondary_y=True)
-        
+            fig = make_subplots(rows=1, cols=1, shared_yaxes=True, subplot_titles=[""], vertical_spacing = 0.08, horizontal_spacing = 0.1, specs=[[{"secondary_y": True}]])
+            df_incid_france_cas_rolling = df_vue_ensemble["total_cas_confirmes"].diff().rolling(window=7, center=False).mean() #df_incid_france["P"].rolling(window=7, center=True).mean()
 
-        fig.add_shape(type="line",
-        x0="2019-12-15", y0=5000, x1="2021-12-15", y1=5000,
-        line=dict(color="green",width=2, dash="dot"), xref='x1', yref='y2'
-        )
+            fig.add_trace(go.Scatter(
+                x = df_vue_ensemble["date"],
+                y = df_incid_france_cas_rolling,
+                name = "Cas positifs (moyenne 7 j.)",
+                marker_color='rgb(8, 115, 191)',
+                line_width=8,
+                opacity=0.8,
+                fill='tozeroy',
+                fillcolor="rgba(8, 115, 191, 0.3)",
+                showlegend=True
+            ), secondary_y=True)
 
-        fig.add_trace(go.Scatter(
-            x = [df_vue_ensemble["date"].values[-1]],
-            y = [df_incid_france_cas_rolling.values[-1]],
-            name = "",
-            mode="markers",
-            marker_color='rgba(255, 255, 255, 0.6)',
-            marker_size=16,
-            opacity=1,
-            showlegend=False
-        ), secondary_y=True)
+            fig.add_trace(go.Bar(
+                x = df_vue_ensemble["date"],
+                y = df_vue_ensemble["total_cas_confirmes"].diff(),
+                name = "Cas positifs (moyenne 7 j.)",
+                marker_color='rgb(8, 115, 191)',
+                #line_width=8,
+                opacity=0.3,
+                #fill='tozeroy',
+                #fillcolor="rgba(8, 115, 191, 0.3)",
+                showlegend=True
+            ), secondary_y=True)
 
-        fig.add_trace(go.Scatter(
-            x = [df_vue_ensemble["date"].values[-1]],
-            y = [df_incid_france_cas_rolling.values[-1]],
-            name = "",
-            mode="markers",
-            marker_color='rgb(8, 115, 191)',
-            marker_size=11,
-            opacity=1,
-            showlegend=False
-        ), secondary_y=True)
 
-        ###
-        if i=="log":
-            fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13), type="log", secondary_y=True)
-            fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13), type="log", secondary_y=False)
-        else:
-            fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13, color="rgba(8, 115, 191, 1)"), secondary_y=True,)
-            fig.update_yaxes(zerolinecolor='blue', tickfont=dict(size=13, color="Grey"), secondary_y=False)
+            fig.add_shape(type="line",
+            x0="2019-12-15", y0=5000, x1="2021-12-15", y1=5000,
+            line=dict(color="green",width=2, dash="dot"), xref='x1', yref='y2'
+            )
 
-        fig.update_xaxes(nticks=10, ticks='inside', tickangle=0, tickfont=dict(size=16), range=range_x)
+            fig.add_trace(go.Scatter(
+                x = [df_vue_ensemble["date"].values[-1]],
+                y = [df_incid_france_cas_rolling.values[-1]],
+                name = "",
+                mode="markers",
+                marker_color='rgba(255, 255, 255, 0.6)',
+                marker_size=16,
+                opacity=1,
+                showlegend=False
+            ), secondary_y=True)
 
-        # Here we modify the tickangle of the xaxis, resulting in rotated labels.
-        fig.update_layout(
-            bargap=0,
-            margin=dict(
-                    l=50,
-                    r=0,
-                    b=0,
-                    t=70,
-                    pad=10
-                ),
-            legend_orientation="h",
-            barmode='group',
-            title={
-                        'text': title,
-                        'y':0.99,
-                        'x':0.5,
-                        'xanchor': 'center',
-                        'yanchor': 'top'},
-                        titlefont = dict(
-                        size=30),
-            xaxis=dict(
-                    title='',
-                    tickformat='%d/%m'),
+            fig.add_trace(go.Scatter(
+                x = [df_vue_ensemble["date"].values[-1]],
+                y = [df_incid_france_cas_rolling.values[-1]],
+                name = "",
+                mode="markers",
+                marker_color='rgb(8, 115, 191)',
+                marker_size=11,
+                opacity=1,
+                showlegend=False
+            ), secondary_y=True)
 
-            annotations = [
-                        dict(
-                            x=0.5,
-                            y=0.99,
-                            xref='paper',
-                            yref='paper',
-                            font=dict(size=14),
-                            text="",#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
-                            showarrow=False
-                        ),
-                        dict(
-                            x=0.5,
-                            y=1.08,
-                            xref='paper',
-                            yref='paper',
-                            font=dict(size=14),
-                            text="Par date de remontée du résultat de test - @GuillaumeRozier - covidtracker.fr",#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
-                            showarrow=False
-                        ),
-                        ]
-                         )
+            ###
+            if i=="log":
+                fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13), type="log", secondary_y=True)
+                fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13), type="log", secondary_y=False)
+            else:
+                fig.update_yaxes(zerolinecolor='Grey', range=range_y, tickfont=dict(size=13, color="rgba(8, 115, 191, 1)"), secondary_y=True,)
+                fig.update_yaxes(zerolinecolor='blue', tickfont=dict(size=13, color="Grey"), secondary_y=False)
 
-        croissance = math.trunc(round(((df_incid_france_cas_rolling.values[-1]-df_incid_france_cas_rolling.values[-8]) / df_incid_france_cas_rolling.values[-8])*100))
-        if croissance >= 0:
-            croissance="+"+str(abs(croissance))
+            fig.update_xaxes(nticks=10, ticks='inside', tickangle=0, tickfont=dict(size=16), range=range_x)
 
-        if i=="log":
-            y=math.log(df_incid_france_cas_rolling.values[-1])
-        else:
-            y=df_incid_france_cas_rolling.values[-1]
-            
-        ax=-100
-        ax2=-100
-        if(suffixe=="_recent"):
+            # Here we modify the tickangle of the xaxis, resulting in rotated labels.
+            fig.update_layout(
+                bargap=0,
+                margin=dict(
+                        l=50,
+                        r=0,
+                        b=0,
+                        t=70,
+                        pad=10
+                    ),
+                legend_orientation="h",
+                barmode='group',
+                title={
+                            'text': title,
+                            'y':0.99,
+                            'x':0.5,
+                            'xanchor': 'center',
+                            'yanchor': 'top'},
+                            titlefont = dict(
+                            size=30),
+                xaxis=dict(
+                        title='',
+                        tickformat='%d/%m'),
+
+                annotations = [
+                            dict(
+                                x=0.5,
+                                y=0.99,
+                                xref='paper',
+                                yref='paper',
+                                font=dict(size=14),
+                                text="",#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
+                                showarrow=False
+                            ),
+                            dict(
+                                x=0.5,
+                                y=1.08,
+                                xref='paper',
+                                yref='paper',
+                                font=dict(size=14),
+                                text="Par date de remontée du résultat de test - @GuillaumeRozier - covidtracker.fr",#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
+                                showarrow=False
+                            ),
+                            ]
+                             )
+
+            croissance = math.trunc(round(((df_incid_france_cas_rolling.values[-1]-df_incid_france_cas_rolling.values[-8]) / df_incid_france_cas_rolling.values[-8])*100))
+            if croissance >= 0:
+                croissance="+"+str(abs(croissance))
+
+            if i=="log":
+                y=math.log(df_incid_france_cas_rolling.values[-1])
+            else:
+                y=df_incid_france_cas_rolling.values[-1]
+
             ax=-100
-            ax2=0
-            
-        fig['layout']['annotations'] += (dict(
-                x = df_vue_ensemble["date"].values[-1], y = y, # annotation point
-                xref='x1', 
-                yref='y2',
-                text=" <b>{} {}".format('%s' % nbWithSpaces(df_incid_france_cas_rolling.values[-1]), "cas quotidiens</b><br>en moyenne<br> publiés du {} au {}.<br> {} % en 7 jours".format(datetime.strptime(df_vue_ensemble["date"].values[-7], '%Y-%m-%d').strftime('%d'), datetime.strptime(df_vue_ensemble["date"].values[-1], '%Y-%m-%d').strftime('%d %b'), croissance)),
-                xshift=-2,
-                yshift=0,
-                xanchor="center",
-                align='center',
-                font=dict(
-                    color="rgb(8, 115, 191)",
-                    size=20
-                    ),
-                opacity=1,
-                ax=ax,
-                ay=-100,
-                arrowcolor="rgb(8, 115, 191)",
-                arrowsize=1.5,
-                arrowwidth=1,
-                arrowhead=0,
-                showarrow=True
-            ),
-              dict(
-                x = df_vue_ensemble["date"].values[-1], y = 5000, # annotation point
-                xref='x1', 
-                yref='y2',
-                text="Objectif",
-                xshift=0,
-                yshift=0,
-                xanchor="left",
-                yanchor="top",
-                align='center',
-                font=dict(
-                    color="green",
-                    size=10
-                    ),
-                opacity=1,
-                ax=0,
-                ay=0,
-                showarrow=False
-            ),
-                dict(
-                x = "2020-10-30", y = 65000, # annotation point
-                xref='x1', 
-                yref='y2',
-                text="Confinement",
-                xanchor="left",
-                yanchor="top",
-                align='center',
-                font=dict(
-                    color="red",
-                    size=8
-                    ),
-                showarrow=False
-            ),
-             dict(
-                x=0.5,
-                y=-0.1,
-                font=dict(size=10),
-                xref='paper',
-                yref='paper',
-                text="Données Santé publique France",#'Date : {}. Source : Santé publique France. Auteur : guillaumerozier.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
-                showarrow=False
-                        ))
+            ax2=-100
+            if(suffixe=="_recent"):
+                ax=-100
+                ax2=0
 
-        fig.write_image(PATH + "images/charts/france/{}.jpeg".format(name_fig+i), scale=2, width=900, height=600)
+            fig['layout']['annotations'] += (dict(
+                    x = df_vue_ensemble["date"].values[-1], y = y, # annotation point
+                    xref='x1', 
+                    yref='y2',
+                    text=" <b>{} {}".format('%s' % nbWithSpaces(df_incid_france_cas_rolling.values[-1]), "cas quotidiens</b><br>en moyenne<br> publiés du {} au {}.<br> {} % en 7 jours".format(datetime.strptime(df_vue_ensemble["date"].values[-7], '%Y-%m-%d').strftime('%d'), datetime.strptime(df_vue_ensemble["date"].values[-1], '%Y-%m-%d').strftime('%d %b'), croissance)),
+                    xshift=-2,
+                    yshift=0,
+                    xanchor="center",
+                    align='center',
+                    font=dict(
+                        color="rgb(8, 115, 191)",
+                        size=20
+                        ),
+                    opacity=1,
+                    ax=ax,
+                    ay=-100,
+                    arrowcolor="rgb(8, 115, 191)",
+                    arrowsize=1.5,
+                    arrowwidth=1,
+                    arrowhead=0,
+                    showarrow=True
+                ),
+                  dict(
+                    x = df_vue_ensemble["date"].values[-1], y = 5000, # annotation point
+                    xref='x1', 
+                    yref='y2',
+                    text="Objectif",
+                    xshift=0,
+                    yshift=0,
+                    xanchor="left",
+                    yanchor="top",
+                    align='center',
+                    font=dict(
+                        color="green",
+                        size=10
+                        ),
+                    opacity=1,
+                    ax=0,
+                    ay=0,
+                    showarrow=False
+                ),
+                    dict(
+                    x = "2020-10-30", y = 65000, # annotation point
+                    xref='x1', 
+                    yref='y2',
+                    text="Confinement",
+                    xanchor="left",
+                    yanchor="top",
+                    align='center',
+                    font=dict(
+                        color="red",
+                        size=8
+                        ),
+                    showarrow=False
+                ),
+                 dict(
+                    x=0.5,
+                    y=-0.1,
+                    font=dict(size=10),
+                    xref='paper',
+                    yref='paper',
+                    text="Données Santé publique France",#'Date : {}. Source : Santé publique France. Auteur : guillaumerozier.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),                    showarrow = False
+                    showarrow=False
+                            ))
 
-        plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig+i), auto_open=False)
-        print("> " + name_fig)
-        if show_charts:
-            fig.show()
-        suffixe="_recent"
+            fig.write_image(PATH + "images/charts/france/{}.jpeg".format(name_fig+i), scale=2, width=900, height=600)
+
+            plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig+i), auto_open=False)
+            print("> " + name_fig)
+            if show_charts:
+                fig.show()
+            suffixe="_recent"
+except:
+    print("ERROR")
 
 
-# In[110]:
+# In[46]:
 
 
 """fig = go.Figure()
@@ -3449,7 +3486,7 @@ fig.update_layout(
 )"""
 
 
-# In[111]:
+# In[47]:
 
 
 """#Comparaison J-7
@@ -3488,7 +3525,7 @@ fig.write_image(PATH + "images/charts/france/{}.jpeg".format(name_fig), scale=2,
 plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig), auto_open=False)"""
 
 
-# In[112]:
+# In[48]:
 
 
 
@@ -3587,7 +3624,7 @@ if show_charts:
     fig.show()
 
 
-# In[113]:
+# In[49]:
 
 
 """range_x, name_fig, range_y = ["2020-03-29", last_day_plot], "cas_rea_hosp_dc_journ", [0, df_incid_france["P"].max()]
@@ -3697,7 +3734,7 @@ if show_charts:
     fig.show()"""
 
 
-# In[114]:
+# In[50]:
 
 
 
@@ -3716,7 +3753,7 @@ for croiss in ["", "_croissance", "log"]:
     
 
 
-# In[115]:
+# In[51]:
 
 
 """
@@ -3752,7 +3789,7 @@ fig.append([plot1, plot2, plot3, plot4])
 fig.save(PATH+"images/charts/france/dashboard_jour.svg")"""
 
 
-# In[116]:
+# In[52]:
 
 
 # Comparaison vague
@@ -3930,7 +3967,7 @@ for (range_x, name_fig, title, x_title) in [(["2020-03-12", "2020-05-12"], "rea_
     print("> " + name_fig)
 
 
-# In[117]:
+# In[53]:
 
 
 for (range_x, name_fig, title, x_title) in [(["2020-03-12", "2020-05-12"], "hosp_journ_v1", "<b>Printemps</b> 2020", 0.8), (["2020-10-25", "2020-12-25"], "hosp_journ_v2", "<b>Automne</b> 2020", 0.2)]:
@@ -4110,7 +4147,7 @@ for (range_x, name_fig, title, x_title) in [(["2020-03-12", "2020-05-12"], "hosp
         fig.show()
 
 
-# In[118]:
+# In[54]:
 
 
 for (range_x, name_fig, title, x_title) in [(["2020-03-12", "2020-05-12"], "dc_journ_v1", "<b>Printemps</b> 2020", 0.8), (["2020-10-25", "2020-12-25"], "dc_journ_v2", "<b>Automne</b> 2020", 0.2)]:
@@ -4301,7 +4338,7 @@ for (range_x, name_fig, title, x_title) in [(["2020-03-12", "2020-05-12"], "dc_j
 
 # ## Evolution jorunée
 
-# In[119]:
+# In[55]:
 
 
 #EVOL JOURN
@@ -4401,7 +4438,7 @@ if show_charts:
 
 # ## Tests Covid
 
-# In[120]:
+# In[56]:
 
 
 # TESTS
@@ -4479,7 +4516,7 @@ if show_charts:
 
 # ## Entrées/Sortires hosp et réa
 
-# In[121]:
+# In[57]:
 
 
 """fig = go.Figure()
@@ -4599,7 +4636,7 @@ if show_charts:
 # ## Entrées/Sorties hosp et réa - rolling mean (7 days)
 # La moyenne glissante sur 4 jours permet de lisser les effets liés aux week-ends (moins de saisies de données, donc il y a un trou) et d'évaluer la tendance.
 
-# In[122]:
+# In[58]:
 
 
 """try:
@@ -4817,7 +4854,7 @@ except Exception as e:
 
 # ## Hospitalisations (bar chart)
 
-# In[123]:
+# In[59]:
 
 
 """fig = go.Figure()
@@ -4884,7 +4921,7 @@ if show_charts:
     fig.show()"""
 
 
-# In[124]:
+# In[60]:
 
 
 date_plus_6 = (datetime.strptime(dates_incid[-1], '%Y-%m-%d') + timedelta(days=6)).strftime('%Y-%m-%d')
@@ -5112,7 +5149,7 @@ for (data_type, data_type_title, marker_color, fillcolor, descr) in [("hosp", "N
 
 # ## Hospitalisations et réanimations (bar charts subplot)
 
-# In[125]:
+# In[61]:
 
 
 fig = make_subplots(rows=2, cols=1, shared_yaxes=True, subplot_titles=["Nombre de personnes<b> hospitalisées</b>", "Nombre de personnes en <b>réanimation</b>"], vertical_spacing = 0.15, horizontal_spacing = 0.1)
@@ -5217,7 +5254,7 @@ print("> " + name_fig)
 
 # ## Indicateur 1 - France
 
-# In[126]:
+# In[62]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -5471,7 +5508,7 @@ print("> " + name_fig)
 #fig.show()
 
 
-# In[127]:
+# In[63]:
 
 
 """
@@ -5617,7 +5654,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 # ## Tests France
 
-# In[128]:
+# In[64]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -5788,7 +5825,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 # ## Titre composition tests
 
-# In[129]:
+# In[65]:
 
 
 fig = go.Figure()
@@ -5876,7 +5913,7 @@ fig.write_image(PATH + "images/charts/france/{}.jpeg".format(name_fig), scale=2,
 
 # ## R_effectif
 
-# In[130]:
+# In[66]:
 
 
 #### Calcul du R_effectif
@@ -5958,8 +5995,9 @@ fig.add_trace(go.Scatter(x = df_reffectif["jour"].values[101:], y = df_reffectif
 
 reffectif_now = df_reffectif[df_reffectif["date_de_passage"] == df_reffectif["jour"].dropna().sort_values().values[-2]]["reffectif_mean"].values[-1]
 
-reffectif_yesterday = df_reffectif[df_reffectif["date_de_passage"] == df_reffectif["jour"].dropna().sort_values().values[-2]]["reffectif_mean"].values[-1]
-
+reffectif_yesterday = df_reffectif[df_reffectif["date_de_passage"] == df_reffectif["jour"].dropna().sort_values().values[-4]]["reffectif_mean"].values[-1]
+print(reffectif_now)
+print(reffectif_yesterday)
 fig.add_trace(go.Scatter(x = [df_reffectif["jour"].dropna().max()], y = [reffectif_now],
                     mode='markers',
                     name="",
@@ -6079,7 +6117,7 @@ if show_charts:
     fig.show()
 
 
-# In[131]:
+# In[67]:
 
 
 def traitement_val(valeur, plus_sign=False):
@@ -6131,7 +6169,7 @@ data_json["tests_last7"] = dict_json
 
 dict_json = {}
 dict_json["valeur"] = round(reffectif_now,2)
-dict_json["str"] = caracterisation_valeur(reffectif_now, reffectif_yesterday, [0.85, 1.25, 1.5])
+dict_json["str"] = caracterisation_valeur(reffectif_now, reffectif_yesterday, [0.85, 1.25, 1.5], step=0.015)
 data_json["reffectif"] = dict_json
 
 ## TAUX INCID
@@ -6174,13 +6212,7 @@ with open(PATH_STATS + 'stats.json', 'w') as outfile:
     json.dump(data_json, outfile)
 
 
-# In[132]:
-
-
-df_incid_fra["P"].rolling(window=7).mean().values[-7:]
-
-
-# In[133]:
+# In[68]:
 
 
 
@@ -6189,7 +6221,7 @@ with open(PATH_STATS + 'cas_sidep.json', 'w') as outfile:
         json.dump(dict_data, outfile)
 
 
-# In[134]:
+# In[69]:
 
 
 df_tests_viros_france = df_tests_viros.groupby(['jour', 'cl_age90']).sum().reset_index()
@@ -6229,13 +6261,13 @@ dates_heatmap_lastday = tranche.index + timedelta(days=6)
 dates_heatmap = [str(dates_heatmap_firstday[i])[8:10] + "/" + str(dates_heatmap_firstday[i])[5:7] + "<br>" + str(dates_heatmap_lastday[i])[8:10] + "/" + str(dates_heatmap_lastday[i])[5:7] for i, val in enumerate(dates_heatmap_firstday)]
 
 
-# In[135]:
+# In[70]:
 
 
 temp = df_tests_viros_france.groupby(["jour"]).sum().reset_index()
 
 
-# In[136]:
+# In[71]:
 
 
 for (val, valname) in [('P', 'positifs'), ('T', '')]:
@@ -6354,7 +6386,7 @@ for (val, valname) in [('P', 'positifs'), ('T', '')]:
     plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig), auto_open=False)
 
 
-# In[137]:
+# In[72]:
 
 
 import plotly.figure_factory as ff
@@ -6456,7 +6488,7 @@ for (name, array, title, scale_txt, data_example, digits) in [("cas", array_posi
     plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig), auto_open=False)
 
 
-# In[138]:
+# In[73]:
 
 
 """#OLD HEATMAP
@@ -6551,7 +6583,7 @@ for (name, data, title, scale_txt, data_example, digits) in [("cas", 'P', "Nombr
     plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig), auto_open=False)"""
 
 
-# In[139]:
+# In[74]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -6722,7 +6754,7 @@ locale.setlocale(locale.LC_ALL, '')
 #fig.show()
 
 
-# In[140]:
+# In[75]:
 
 
 """
@@ -6828,7 +6860,7 @@ print("> " + name_fig)
 #fig.show()"""
 
 
-# In[141]:
+# In[76]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -6996,7 +7028,7 @@ print("> " + name_fig)
 #fig.show()
 
 
-# In[142]:
+# In[77]:
 
 
 
@@ -7075,7 +7107,7 @@ print("> " + name_fig)
 # ## Situation cas (bar chart)
 # Où en sont les personnes atteintes du Covid (retour à domicile, décédées, en réa, hosp ou autre)
 
-# In[143]:
+# In[78]:
 
 
 
@@ -7163,7 +7195,7 @@ if show_charts:
 
 # ## Décès hospitalisations et réanimations (line chart)
 
-# In[144]:
+# In[79]:
 
 
 df_france = df.groupby('jour').sum().reset_index()
@@ -7229,7 +7261,7 @@ print("> " + name_fig)
 
 # ## Décès cumulés (line chart)
 
-# In[145]:
+# In[80]:
 
 
 
@@ -7265,7 +7297,7 @@ if show_charts:
     fig.show()
 
 
-# In[146]:
+# In[81]:
 
 
 
@@ -7303,7 +7335,7 @@ if show_charts:
 
 # ## Hospitalisations
 
-# In[147]:
+# In[82]:
 
 
 
@@ -7341,7 +7373,7 @@ if show_charts:
 
 # ## Hospitalisations (entrées - sorties) (line chart)
 
-# In[148]:
+# In[83]:
 
 
 
@@ -7379,7 +7411,7 @@ if show_charts:
 
 # ## Admissions en hospitalisation (line chart)
 
-# In[149]:
+# In[84]:
 
 
 
@@ -7416,7 +7448,7 @@ if show_charts:
     fig.show()
 
 
-# In[150]:
+# In[85]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -7500,7 +7532,7 @@ for graph, data_name in [("", "cas"), ("pop", "cas pour 100 k. hab.")]:
         fig.show()
 
 
-# In[151]:
+# In[86]:
 
 
 def prep_course():
@@ -7517,11 +7549,11 @@ def prep_course():
     """(df_incid_reg, "incidence_rolling", dates_incid, "Incidence", "course_incidence", "regionName"),    (df_incid_reg, "P_rolling", dates_incid, "Cas de Covid19", "course_cas", "regionName"),    (df_region, "dc_pop_new_rolling", dates, "Décès pour 1M hab.", "course_dc", "regionName")]:"""
 
 
-# In[152]:
+# In[87]:
 
 
 #COURSE
-n1 = 80
+n1 = 40
 df_incid_reg = df_incid.groupby(['jour', 'regionName']).sum().reset_index()
 df_incid_reg["P_pop"] = df_incid_reg["P"]*100000/df_incid_reg["pop"]
 
@@ -7609,11 +7641,11 @@ for (dataset, column, dates_to_use, title, folder) in [    (df_incid_reg, "incid
             fig.write_image(PATH + "images/charts/france/{}/{}.jpeg".format(folder, i), scale=2, width=650, height=450)
 
 
-# In[153]:
+# In[88]:
 
 
 #COURSE REA
-n2 = len(dates_clage)
+n2 = int(len(dates_clage)/2)
 
 for (dataset, column, dates_to_use, title, folder) in [    (df_clage_france, "rea", dates_clage, "Personnes en réanimation pour Covid19", "course_rea_clage_rolling"),    (df_clage_france, "hosp", dates_clage, "Personnes hospitalisées pour Covid19", "course_hosp_clage_rolling"),    (df_clage_france, "dc", dates_clage, "Décès hospitaliers pour Covid19", "course_dc_clage_rolling")]:
         
@@ -7689,7 +7721,7 @@ for (dataset, column, dates_to_use, title, folder) in [    (df_clage_france, "re
             fig.write_image(PATH + "images/charts/france/{}/{}.jpeg".format(folder, i), scale=2, width=650, height=450)
 
 
-# In[154]:
+# In[89]:
 
 
 """
@@ -7709,7 +7741,7 @@ with imageio.get_writer(PATH + "images/charts/france/course_incidence/course.gif
 """
 
 
-# In[155]:
+# In[90]:
 
 
 #import glob
@@ -7752,7 +7784,7 @@ for (folder, n, fps) in [("course_rea_clage_rolling", n2, 7), ("course_hosp_clag
         print("error conversion h265")
 
 
-# In[156]:
+# In[91]:
 
 
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
@@ -7811,7 +7843,7 @@ if show_charts:
 
 # ## Réanimations par région (line chart)
 
-# In[157]:
+# In[92]:
 
 
 fig = px.line(x=df_region['jour'], y=df_region['rea'], color=df_region["regionName"], color_discrete_sequence=colors).update_traces(mode='lines+markers', marker_size=7.5, line=dict(width=2.5))
@@ -7847,7 +7879,7 @@ if show_charts:
 
 # ## Réanimations par département (line chart)
 
-# In[158]:
+# In[93]:
 
 
 df_last_d = df[df['jour'] == dates[-1]]

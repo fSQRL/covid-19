@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import requests
@@ -12,13 +12,205 @@ PATH = '../../'
 PATH_STATS = "../../data/france/stats/"
 
 
-# In[1]:
+# In[5]:
 
 
 # Download data from Santé publique France and export it to local files
+def download_data_hosp_fra_clage():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/08c18e08-6780-452d-9b8c-ae244ad529b3")
+    with open(PATH + 'data/france/donnees-hosp-fra-clage.csv', 'wb') as f:
+        f.write(data.content)
+
+def download_data_opencovid():
+    data = requests.get("https://raw.githubusercontent.com/opencovid19-fr/data/master/dist/chiffres-cles.csv")
+    with open(PATH + 'data/france/donnees-opencovid.csv', 'wb') as f:
+        f.write(data.content)
+        
+def download_data_vue_ensemble():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/d3a98a30-893f-47f7-96c5-2f4bcaaa0d71")        
+    with open(PATH + 'data/france/synthese-fra.csv', 'wb') as f:
+        f.write(data.content)
+
+def download_data_variants():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/848debc4-0e42-4e3b-a176-afc285ed5401") #https://www.data.gouv.fr/fr/datasets/r/c43d7f3f-c9f5-436b-9b26-728f80e0fd52
+    data_reg = requests.get("https://www.data.gouv.fr/fr/datasets/r/5ff0cad6-f150-47ea-a4e0-57e354c1b2a4") #https://www.data.gouv.fr/fr/datasets/r/73e8851a-d851-43f8-89e4-6178b35b7127
+    with open(PATH + 'data/france/donnees-variants.csv', 'wb') as f:
+        f.write(data.content)
+    with open(PATH + 'data/france/donnees-variants-reg.csv', 'wb') as f:
+        f.write(data.content)
+        
+def download_data_variants_deps():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/4d3e5a8b-9649-4c41-86ec-5420eb6b530c") #https://www.data.gouv.fr/fr/datasets/r/16f4fd03-797f-4616-bca9-78ff212d06e8        
+    with open(PATH + 'data/france/donnees-variants-deps.csv', 'wb') as f:
+        f.write(data.content)
+
+def download_data_vacsi_fra():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/efe23314-67c4-45d3-89a2-3faef82fae90")        
+    with open(PATH + 'data/france/donnees-vacsi-fra.csv', 'wb') as f:
+        f.write(data.content)
+        
+def download_data_vacsi_reg():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/735b0df8-51b4-4dd2-8a2d-8e46d77d60d8")        
+    with open(PATH + 'data/france/donnees-vacsi-reg.csv', 'wb') as f:
+        f.write(data.content)
+        
+def download_data_vacsi_dep():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/4f39ec91-80d7-4602-befb-4b522804c0af")        
+    with open(PATH + 'data/france/donnees-vacsi-dep.csv', 'wb') as f:
+        f.write(data.content)
+
+def download_data_obepine():
+    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/031b79a4-5ee1-4f40-a804-b8abec3e99a6") #https://www.data.gouv.fr/fr/datasets/r/ba71be57-5932-4298-81ea-aff3a12a440c        
+    with open(PATH + 'data/france/donnees_obepine_regions.csv', 'wb') as f:
+        f.write(data.content)
+        
+def download_data_donnees_vaccination_par_pathologie():
+    data = requests.get("https://datavaccin-covid.ameli.fr/explore/dataset/donnees-vaccination-par-pathologie/download/?format=csv&timezone=Europe/Berlin&lang=fr&use_labels_for_header=true&csv_separator=%3B")
+    with open(PATH + 'data/france/donnees-vaccination-par-pathologie.csv', 'wb') as f:
+        f.write(data.content)
+        
+def import_data_donnees_vaccination_par_pathologie():
+    df = pd.read_csv(PATH + 'data/france/donnees-vaccination-par-pathologie.csv', sep=None)
+    return df
+
+def download_donnees_vaccination_par_tranche_dage_type_de_vaccin_et_departement():
+    data = requests.get("https://datavaccin-covid.ameli.fr/explore/dataset/donnees-vaccination-par-tranche-dage-type-de-vaccin-et-departement/download/?format=csv&timezone=Europe/Berlin&lang=fr&use_labels_for_header=true&csv_separator=%3B")
+    with open(PATH + 'data/france/donnees-tranche-dage-departement.csv', 'wb') as f:
+        f.write(data.content)
+        
+def import_donnees_vaccination_par_tranche_dage_type_de_vaccin_et_departement():
+    df = pd.read_csv(PATH + 'data/france/donnees-tranche-dage-departement.csv', sep=None)
+    return df
+
+def import_data_obepine():
+    df = pd.read_csv(PATH + 'data/france/donnees_obepine_regions.csv', sep=None)
+    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
+    df = df.merge(right=df_reg_pop, left_on="Code_Region", right_on="code")
+    return df
+
+def import_data_metropoles():
+    df_metro = pd.read_csv(PATH + 'data/france/donnes-incidence-metropoles.csv', sep=",")
+    epci = pd.read_csv(PATH + 'data/france/metropole-epci.csv', sep=";", encoding="'windows-1252'")
+    
+    df_metro = df_metro.merge(epci, left_on='epci2020', right_on='EPCI').drop(['EPCI'], axis=1)
+    
+    return df_metro
+
+def import_data_hosp_clage():
+    df_hosp = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-clage-covid19.csv', sep=";")
+    df_hosp = df_hosp.groupby(["reg", "jour", "cl_age90"]).first().reset_index()
+    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
+    df_hosp = df_hosp.merge(df_reg_pop, left_on="reg", right_on="code")
+    
+    return df_hosp
+
+def import_data_tests_viros():
+    df = pd.read_csv(PATH + 'data/france/tests_viro-dep-quot.csv', sep=";")
+
+    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
+    df_dep_reg = pd.read_csv(PATH + 'data/france/departments_regions_france_2016.csv', sep=",")
+    
+    df["dep"] = df["dep"].astype(str)
+    df["dep"] = df["dep"].astype('str').str.replace(r"^([1-9])$", lambda m: "0"+m.group(0), regex=True)
+    df_dep_reg["departmentCode.astype"] = df_dep_reg.departmentCode.astype(str)
+    
+    df = df.merge(df_dep_reg, left_on="dep", right_on="departmentCode", how="left")
+    df = df.merge(df_reg_pop, left_on="regionCode", right_on="code", how="left")
+    
+    return df
+
+def import_data_hosp_ad_age():
+    df = pd.read_csv('https://www.data.gouv.fr/fr/datasets/r/dc7663c7-5da9-4765-a98b-ba4bc9de9079', sep=";")
+    return df
+    
+def import_data_new():
+    df_new = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19-nouveaux.csv', sep=";")
+    return df_new
+
+def import_data_df():
+    df = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19.csv', sep=";")
+    return df
+
+def import_data_variants():
+    df_variants = pd.read_csv(PATH + 'data/france/donnees-variants.csv', sep=";")
+    df_variants["jour"] = df_variants.semaine.apply(lambda x: x[11:]) 
+    #df_variants = df_variants[df_variants.cl_age90==0]
+    return df_variants
+
+def import_data_variants_deps():
+    df_variants = pd.read_csv(PATH + 'data/france/donnees-variants-deps.csv', sep=";")
+    df_variants["jour"] = df_variants.semaine.apply(lambda x: x[11:]) 
+    #df_variants = df_variants[df_variants.cl_age90==0]
+    return df_variants
+
+def import_data_variants_regs():
+    df_variants = pd.read_csv(PATH + 'data/france/donnees-variants-regs.csv', sep=";")
+    df_variants["jour"] = df_variants.semaine.apply(lambda x: x[11:]) 
+    df_variants = df_variants[df_variants.cl_age90==0]
+    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
+    df_variants = df_variants.merge(df_reg_pop, left_on="reg", right_on="code")
+    return df_variants
+
+def import_data_tests_sexe():
+    df = pd.read_csv(PATH + 'data/france/tests_viro-fra-covid19.csv', sep=";")
+    return df
+
+def import_data_vue_ensemble():
+    df = pd.read_csv(PATH + 'data/france/synthese-fra.csv', sep=",")
+    df = df.sort_values(["date"])
+    
+    with open(PATH_STATS + 'vue-ensemble.json', 'w') as outfile:
+        dict_data = {"cas":  int(df["total_cas_confirmes"].diff().values[-1]), "update": df.date.values[-1][-2:] + "/" + df.date.values[-1][-5:-3]}
+        json.dump(dict_data, outfile)
+        
+    return df
+
+def import_data_opencovid():
+    df = pd.read_csv(PATH + 'data/france/donnees-opencovid.csv', sep=",")
+    
+    """with open(PATH_STATS + 'opencovid.json', 'w') as outfile:
+        dict_data = {"cas":  int(df["cas_confirmes"].values[-1]), "update": df.index.values[-1][-2:] + "/" + df.index.values[-1][-5:-3]}
+        json.dump(dict_data, outfile)"""
+    return df
+
+def import_data_vacsi_a_fra():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-fra.csv', sep=";")
+    df = df[df.clage_vacsi != 0]
+    return df
+
+def import_data_vacsi_reg():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-reg.csv', sep=";")
+    return df
+
+def import_data_vacsi_dep():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-dep.csv', sep=";")
+    return df
+
+def import_data_vacsi_fra():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-fra.csv', sep=";")
+    return df
+    
+def import_data_vacsi_a_reg():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-reg.csv', sep=";")
+    df = df[df.clage_vacsi != 0]
+    return df
+
+def import_data_vacsi_a_dep():
+    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-dep.csv', sep=";")
+    df = df[df.clage_vacsi != 0]
+    return df
+
+def import_data_hosp_fra_clage():
+    df = pd.read_csv(PATH + 'data/france/donnees-hosp-fra-clage.csv', sep=";").groupby(["cl_age90", "jour"]).sum().reset_index()
+    df = df[df.cl_age90 != 0]
+    return df
 
 def download_data():
     pbar = tqdm(total=8)
+    download_data_vacsi_fra()
+    download_data_vacsi_reg()
+    download_data_vacsi_dep()
+    
     url_metadata = "https://www.data.gouv.fr/fr/organizations/sante-publique-france/datasets-resources.csv"
     url_geojson = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson"
     url_deconf = "https://www.data.gouv.fr/fr/datasets/r/f2d0f955-f9c4-43a8-b588-a03733a38921"
@@ -46,7 +238,7 @@ def download_data():
     url_data = "https://www.data.gouv.fr/fr/datasets/r/63352e38-d353-4b54-bfd1-f1b3ee1cabd7" #df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-covid19")]["url"].values[0] #donnees-hospitalieres-classe-age-covid19-2020-10-14-19h00.csv 
     url_data_new = "https://www.data.gouv.fr/fr/datasets/r/6fadff46-9efd-4c53-942a-54aca783c30c" #df_metadata[df_metadata['url'].str.contains("/donnees-hospitalieres-nouveaux")]["url"].values[0]
     url_tests = df_metadata[df_metadata['url'].str.contains("/donnees-tests-covid19-labo-quotidien")]["url"].values[0]
-    url_metropoles = df_metadata[df_metadata['url'].str.contains("/sg-metro-opendata")]["url"].max()
+    url_metropoles = "https://www.data.gouv.fr/fr/datasets/r/61533034-0f2f-4b16-9a6d-28ffabb33a02" #df_metadata[df_metadata['url'].str.contains("/sg-metro-opendata")]["url"].max()
     url_incidence = df_metadata[df_metadata['url'].str.contains("/sp-pe-tb-quot")]["url"].values[0]
     
     url_tests_viro = df_metadata[df_metadata['url'].str.contains("/sp-pos-quot-dep")]["url"].values[0]
@@ -124,7 +316,7 @@ def import_data():
     pbar = tqdm(total=8)
     pbar.update(1)
     df = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19.csv', sep=";")
-    
+    df.dep = df.dep.astype(str)
     df_sursaud = pd.read_csv(PATH + 'data/france/sursaud-covid19-departement.csv', sep=";")
     df_sursaud["dep"] = df_sursaud["dep"].astype('str').str.replace(r"^([1-9])$", lambda m: "0"+m.group(0), regex=True)
     
@@ -133,8 +325,10 @@ def import_data():
     df_deconf = pd.read_csv(PATH + 'data/france/indicateurs-deconf.csv', sep=",")
     df_incid = pd.read_csv(PATH + 'data/france/taux-incidence-dep-quot.csv', sep=";")
     df_incid["dep"] = df_incid["dep"].astype('str')
-    
+    df_incid["dep"] = df_incid["dep"].astype('str').str.replace(r"^([1-9])$", lambda m: "0"+m.group(0), regex=True)
+
     df_tests_viro = pd.read_csv(PATH + 'data/france/tests_viro-dep-quot.csv', sep=";")
+    df_tests_viro["dep"] = df_tests_viro["dep"].astype('str').str.replace(r"^([1-9])$", lambda m: "0"+m.group(0), regex=True)
     
     pbar.update(2)
     
@@ -147,7 +341,6 @@ def import_data():
     df_regions = pd.read_csv(PATH + 'data/france/departments_regions_france_2016.csv', sep=",")
     df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
     df_dep_pop = pd.read_csv(PATH + 'data/france/dep-pop.csv', sep=";")
-    
     ###
     df = df.merge(df_regions, left_on='dep', right_on='departmentCode')
     df = df.merge(df_reg_pop, left_on='regionName', right_on='regionName')
@@ -155,7 +348,6 @@ def import_data():
     df = df[df["sexe"] == 0]
     df['hosp_nonrea'] = df['hosp'] - df['rea']
     df = df.merge(lits_reas, left_on="departmentName", right_on="nom_dpt")
-    
     #df_tests_viro = df_tests_viro[df_tests_viro["cl_age90"] == 0]
     
     df_incid = df_incid.merge(df_regions, left_on='dep', right_on='departmentCode')
@@ -233,125 +425,8 @@ def import_data():
     import_data_opencovid()
     return df, df_confirmed, dates, df_new, df_tests, df_deconf, df_sursaud, df_incid, df_tests_viro
 
-def download_data_hosp_fra_clage():
-    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/08c18e08-6780-452d-9b8c-ae244ad529b3")
-    with open(PATH + 'data/france/donnees-hosp-fra-clage.csv', 'wb') as f:
-        f.write(data.content)
 
-def download_data_opencovid():
-    data = requests.get("https://raw.githubusercontent.com/opencovid19-fr/data/master/dist/chiffres-cles.csv")
-    with open(PATH + 'data/france/donnees-opencovid.csv', 'wb') as f:
-        f.write(data.content)
-        
-def download_data_vue_ensemble():
-    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/d3a98a30-893f-47f7-96c5-2f4bcaaa0d71")        
-    with open(PATH + 'data/france/synthese-fra.csv', 'wb') as f:
-        f.write(data.content)
-
-def download_data_variants():
-    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/c43d7f3f-c9f5-436b-9b26-728f80e0fd52")        
-    with open(PATH + 'data/france/donnees-variants.csv', 'wb') as f:
-        f.write(data.content)
-        
-def download_data_variants_deps():
-    data = requests.get("https://www.data.gouv.fr/fr/datasets/r/16f4fd03-797f-4616-bca9-78ff212d06e8")        
-    with open(PATH + 'data/france/donnees-variants-deps.csv', 'wb') as f:
-        f.write(data.content)
-
-def import_data_metropoles():
-    df_metro = pd.read_csv(PATH + 'data/france/donnes-incidence-metropoles.csv', sep=",")
-    epci = pd.read_csv(PATH + 'data/france/metropole-epci.csv', sep=";", encoding="'windows-1252'")
-    
-    df_metro = df_metro.merge(epci, left_on='epci2020', right_on='EPCI').drop(['EPCI'], axis=1)
-    
-    return df_metro
-
-def import_data_hosp_clage():
-    df_hosp = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-clage-covid19.csv', sep=";")
-    df_hosp = df_hosp.groupby(["reg", "jour", "cl_age90"]).first().reset_index()
-    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
-    df_hosp = df_hosp.merge(df_reg_pop, left_on="reg", right_on="code")
-    
-    return df_hosp
-
-def import_data_tests_viros():
-    df = pd.read_csv(PATH + 'data/france/tests_viro-dep-quot.csv', sep=";")
-    
-    df_reg_pop = pd.read_csv(PATH + 'data/france/population_grandes_regions.csv', sep=",")
-    df_dep_reg = pd.read_csv(PATH + 'data/france/departments_regions_france_2016.csv', sep=",")
-    
-    df["dep"] = df["dep"].astype(str)
-    df_dep_reg["departmentCode.astype"] = df_dep_reg.departmentCode.astype(str)
-    
-    df = df.merge(df_dep_reg, left_on="dep", right_on="departmentCode", how="left")
-    df = df.merge(df_reg_pop, left_on="regionCode", right_on="code", how="left")
-    
-    return df
-
-def import_data_new():
-    df_new = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19-nouveaux.csv', sep=";")
-    return df_new
-
-def import_data_df():
-    df = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19.csv', sep=";")
-    return df
-
-def import_data_variants():
-    df_variants = pd.read_csv(PATH + 'data/france/donnees-variants.csv', sep=";")
-    df_variants["jour"] = df_variants.semaine.apply(lambda x: x[11:]) 
-    df_variants = df_variants[df_variants.cl_age90==0]
-    return df_variants
-
-def import_data_variants_deps():
-    df_variants = pd.read_csv(PATH + 'data/france/donnees-variants-deps.csv', sep=";")
-    df_variants["jour"] = df_variants.semaine.apply(lambda x: x[11:]) 
-    df_variants = df_variants[df_variants.cl_age90==0]
-    return df_variants
-
-def import_data_tests_sexe():
-    df = pd.read_csv(PATH + 'data/france/tests_viro-fra-covid19.csv', sep=";")
-    return df
-
-def import_data_vue_ensemble():
-    df = pd.read_csv(PATH + 'data/france/synthese-fra.csv', sep=",")
-    df = df.sort_values(["date"])
-    
-    with open(PATH_STATS + 'vue-ensemble.json', 'w') as outfile:
-        dict_data = {"cas":  int(df["total_cas_confirmes"].diff().values[-1]), "update": df.date.values[-1][-2:] + "/" + df.date.values[-1][-5:-3]}
-        json.dump(dict_data, outfile)
-        
-    return df
-
-def import_data_opencovid():
-    df = pd.read_csv(PATH + 'data/france/donnees-opencovid.csv', sep=",")
-    
-    """with open(PATH_STATS + 'opencovid.json', 'w') as outfile:
-        dict_data = {"cas":  int(df["cas_confirmes"].values[-1]), "update": df.index.values[-1][-2:] + "/" + df.index.values[-1][-5:-3]}
-        json.dump(dict_data, outfile)"""
-    return df
-
-def import_data_vacsi_a_fra():
-    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-fra.csv', sep=";")
-    df = df[df.clage_vacsi != 0]
-    return df
-
-def import_data_vacsi_a_reg():
-    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-reg.csv', sep=";")
-    df = df[df.clage_vacsi != 0]
-    return df
-
-def import_data_vacsi_a_dep():
-    df = pd.read_csv(PATH + 'data/france/donnees-vacsi-a-dep.csv', sep=";")
-    df = df[df.clage_vacsi != 0]
-    return df
-
-def import_data_hosp_fra_clage():
-    df = pd.read_csv(PATH + 'data/france/donnees-hosp-fra-clage.csv', sep=";").groupby(["cl_age90", "jour"]).sum().reset_index()
-    df = df[df.cl_age90 != 0]
-    return df
-
-
-# In[3]:
+# In[8]:
 
 
 #import_data_opencovid()
@@ -359,10 +434,11 @@ def import_data_hosp_fra_clage():
 #df, df_confirmed, dates, df_new, df_tests, df_deconf, df_sursaud, df_incid, df_tests_viro = import_data()
 
 
-# In[4]:
+# In[11]:
 
 
-#import_data_opencovid()
+#df = pd.read_csv(PATH + 'data/france/donnes-hospitalieres-covid19.csv', sep=";")
+#df[df.dep=="59"]
 
 
 # In[35]:

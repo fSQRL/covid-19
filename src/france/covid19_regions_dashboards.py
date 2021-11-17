@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[1]:
 
 
 """
@@ -23,7 +23,7 @@ Requirements: please see the imports below (use pip3 to install them).
 """
 
 
-# In[21]:
+# In[2]:
 
 
 import pandas as pd
@@ -42,15 +42,17 @@ PATH_STATS = "../../data/france/stats/"
 
 import locale
 locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+COULEUR_NON_VACCINES = "#C65102"
+COULEUR_COMPLETEMENT_VACCINES = "#00308F"
 
 
-# In[22]:
+# In[3]:
 
 
 df, df_confirmed, dates, df_new, df_tests, df_deconf, df_sursaud, df_incid, df_tests_viros = data.import_data()
 
 
-# In[23]:
+# In[4]:
 
 
 df_regions = df.groupby(["jour", "regionName"]).sum().reset_index()
@@ -62,13 +64,13 @@ last_day_plot = (datetime.strptime(max(dates), '%Y-%m-%d') + timedelta(days=1)).
 df_new_regions = df_new.groupby(["jour", "regionName"]).sum().reset_index()
 
 
-# In[24]:
+# In[5]:
 
 
 lits_reas = pd.read_csv(PATH+'data/france/lits_rea.csv', sep=",")
 
 
-# In[25]:
+# In[6]:
 
 
 regions_deps = df.groupby(["departmentName", "regionName"]).sum().reset_index().loc[:,["departmentName", "regionName"]]
@@ -77,7 +79,268 @@ lits_reas_regs = lits_reas.groupby(["regionName"]).sum().reset_index()
 df_regions = df_regions.merge(lits_reas_regs, left_on="regionName", right_on="regionName")
 
 
-# In[26]:
+# In[7]:
+
+
+df_drees_regions = pd.read_csv("https://data.drees.solidarites-sante.gouv.fr/explore/dataset/covid-19-resultats-regionaux-issus-des-appariements-entre-si-vic-si-dep-et-vac-s/download/?format=csv&timezone=Europe/Berlin&lang=fr&use_labels_for_header=true&csv_separator=%3B", sep=";")
+noms_regions = pd.read_csv(PATH+"data/france/noms_regions_code_drees.csv", sep=",")
+df_drees_regions = df_drees_regions.merge(noms_regions, left_on="region", right_on="codeRegionDrees")
+
+
+# In[8]:
+
+
+#data.download_data_variants_regs()
+#df_variants = data.import_data_variants_regs()
+
+
+# In[9]:
+
+
+"""def nombre_variants(region):
+    df_incid_reg = df_incid_regions[df_incid_regions["regionName"] == region]
+    df_incid_reg["P_rolling"] = df_incid_reg["P"].rolling(window=7).mean()
+    
+    df_variants_reg = df_variants[df_variants["reg"] == df_incid_dep["reg"].values[0]]
+    
+    fig = go.Figure()
+    n_days = len(df_variants_dep)
+
+    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_501Y_V1.values/100
+    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
+    fig.add_trace(
+        go.Scatter(
+            x=df_variants_dep.jour,
+            y=y,
+            name="<b>Variant UK </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            stackgroup='one'
+        )
+    )
+
+    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_501Y_V2_3.values/100
+    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
+    fig.add_trace(
+        go.Scatter(
+            x=df_variants_dep.jour,
+            y=y,
+            name="<b>Variants SA + BZ </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            showlegend=True,
+            stackgroup='one'
+        )
+    )
+
+    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_IND.values/100
+    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
+    fig.add_trace(
+        go.Scatter(
+            x=df_variants_dep.jour,
+            y=y,
+            name="<b>Variants indéterminés </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            showlegend=True,
+            stackgroup='one'
+        )
+    )
+    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_ABS.values/100
+    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
+    fig.add_trace(
+        go.Scatter(
+            x=df_variants_dep.jour,
+            y=y,
+            name="<b>Souche classique </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            showlegend=True,
+            stackgroup='one'
+        )
+    )
+
+    fig.update_yaxes(ticksuffix="")
+
+    fig.update_layout(
+         title={
+            'text': "Nombre de variants dans les cas détectés - " + departement,
+            'y':0.97,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+             'font': {'size': 20}
+        },
+        annotations = [
+                        dict(
+                            x=0.5,
+                            y=1.1,
+                            xref='paper',
+                            yref='paper',
+                            text='Date : {}. Données : Santé publique France. Auteur : @guillaumerozier - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),
+                            showarrow = False
+                        )]
+    )
+    fig.write_image(PATH+"images/charts/france/departements_dashboards/{}.jpeg".format("variants_nombre_"+departement), scale=1.5, width=750, height=500)
+"""
+
+
+# In[10]:
+
+
+def hosp_statut_vaccinal(region):
+    df_drees_reg = df_drees_regions[df_drees_regions["regionName"] == region]
+    df_drees_reg = df_drees_reg.sort_values(by="date")
+    
+    df_drees_non_vaccines = df_drees_reg[df_drees_reg["vac_statut"]=="Non-vaccinés"]
+    df_drees_non_vaccines["effectif J-7"] = df_drees_non_vaccines["effectif J-7"].rolling(window=7).mean()
+
+    df_drees_completement_vaccines = df_drees_reg[df_drees_reg["vac_statut"].isin(["Vaccination complète",])].groupby("date").sum().reset_index()
+    df_drees_completement_vaccines["effectif J-7"] = df_drees_completement_vaccines["effectif J-7"].rolling(window=7).mean()
+
+    df_drees_partiellement_vaccines = df_drees_reg[df_drees_reg["vac_statut"].isin(["Primo dose récente", "Primo dose efficace"])].groupby("date").sum().reset_index()
+    df_drees_partiellement_vaccines["effectif J-7"] = df_drees_partiellement_vaccines["effectif J-7"].rolling(window=7).mean()
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_drees_non_vaccines["date"].values,
+            y=df_drees_non_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_non_vaccines["effectif J-7"] * 10000000,
+            name="Non vaccinés",
+            line_color="#C65102",
+            line_width=4
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[df_drees_non_vaccines["date"].values[-1]],
+            y=[(df_drees_non_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_non_vaccines["effectif J-7"] * 10000000).values[-1]],
+            name="Non vaccinés",
+            line_color="#C65102",
+            marker_size=10,
+            showlegend=False
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_drees_partiellement_vaccines["date"].values,
+            y=df_drees_partiellement_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_partiellement_vaccines["effectif J-7"] * 10000000,
+            name="Partiellement vaccinés",
+            line_color="#4777d6",
+            line_width=4
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[df_drees_partiellement_vaccines["date"].values[-1]],
+            y=[(df_drees_partiellement_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_partiellement_vaccines["effectif J-7"] * 10000000).values[-1]],
+            name="Partiellement vaccinés",
+            line_color="#4777d6",
+            marker_size=10,
+            showlegend=False
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_drees_completement_vaccines["date"].values,
+            y=df_drees_completement_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_completement_vaccines["effectif J-7"] * 10000000,
+            name="Vaccinés",
+            line_color="#00308F",
+            line_width=4
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=[df_drees_completement_vaccines["date"].values[-1]],
+            y=[(df_drees_completement_vaccines["HC_PCR+"].rolling(window=7).mean() / df_drees_completement_vaccines["effectif J-7"] * 10000000).values[-1]],
+            name="Vaccinés",
+            line_color="#00308F",
+            marker_size=10,
+            showlegend=False
+        )
+    )
+
+
+    """fig.add_trace(
+        go.Scatter(
+            x=df_drees_partiellement_vaccines["date"].values,
+            y=df_drees_partiellement_vaccines["HC"].rolling(window=7).mean() / df_drees_partiellement_vaccines["n_dose1"].rolling(window=30).sum() * 1000000,
+            name="Partiellement vaccinés",
+            line_color="#1E90FF",
+            line_width=3
+        )
+    )"""
+
+    fig.update_layout(
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(256,256,256,0.8)"
+        ),
+        margin=dict(
+            r=160
+        ),
+        title={
+                            'text': "<b>Admissions à l'hôpital</b> pour Covid - " + region,
+                            'y':0.97,
+                            'x':0.5,
+                            'xanchor': 'center',
+                            'yanchor': 'top'},
+        titlefont = dict(
+                        size=25),
+        annotations = [
+                            dict(
+                                x=0.5,
+                                y=1.12,
+                                xref='paper',
+                                yref='paper',
+                                font=dict(size=14),
+                                text="selon le statut vaccinal, pour 10 Mio hab. de chaque groupe - {}<br>Données DREES - @GuillaumeRozier - covidtracker.fr".format(datetime.strptime(df_drees_reg.date.max(), '%Y-%m-%d').strftime('%d %B %Y')),#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(),                    showarrow = False
+                                showarrow=False
+                            ),
+                            ]
+    )
+    y=df_drees_non_vaccines["HC_PCR+"].rolling(window=7).mean().values[-1] / df_drees_non_vaccines["effectif J-7"].values[-1] * 10000000
+    fig.add_annotation(
+        x=df_drees_reg.date.max(),
+        y=y,
+        text="<b>" + str(int(round(y))) + " admissions<br>non vaccinées</b><br>/ 10 Mio de non vaccinés",
+        font=dict(color=COULEUR_NON_VACCINES),
+        showarrow=False,
+        align="left",
+        yshift=0,
+        xshift=105
+    )
+
+    y=df_drees_completement_vaccines["HC_PCR+"].rolling(window=7).mean().values[-1] / df_drees_completement_vaccines["effectif J-7"].values[-1] * 10000000
+    fig.add_annotation(
+        x=df_drees_reg.date.max(),
+        y=y,
+        text="<b>" + str(int(round(y))) + " admissions<br>complètement vaccinées</b><br>/ 10 Mio de vaccinés",
+        font=dict(color=COULEUR_COMPLETEMENT_VACCINES),
+        showarrow=False,
+        align="left",
+        yshift=0,
+        xshift=105,
+    )
+
+    fig.add_annotation(
+        x=0.5,
+        y=-0.225,
+        xref='paper',
+        yref='paper',
+        text="<i>Une personne est considérée comme vaccinée après avoir terminé son schéma vaccinal. Hospitalisations avec test PCR+ dans les 21 jours avant/après l'admission.</i>",
+        font=dict(size=9),
+        showarrow=False,
+        yshift=30
+    )
+    fig.update_yaxes(title="Admissions quot. / 10 Mio hab. de chaque groupe")
+    fig.update_xaxes(tickformat="%d/%m", range=[datetime.strptime(df_drees_reg.date.min(), '%Y-%m-%d') + timedelta(days=5), 
+                                                datetime.strptime(df_drees_reg.date.max(), '%Y-%m-%d') + timedelta(days=2)])
+    name_fig = "hc_proportion_selon_statut_vaccinal"
+    fig.write_image(PATH + "images/charts/france/regions_dashboards/{}.jpeg".format(name_fig+"_"+region), scale=1.5, width=900, height=600)
+    
+
+
+# In[11]:
 
 
 def cas_journ(region):
@@ -229,7 +492,7 @@ def cas_journ(region):
 #cas_journ("Auvergne-Rhône-Alpes")
 
 
-# In[27]:
+# In[12]:
 
 
 def hosp_journ(region):   
@@ -380,7 +643,7 @@ def hosp_journ(region):
     print("> " + name_fig)
 
 
-# In[28]:
+# In[13]:
 
 
 def hosp_journ_elias(reg):
@@ -671,7 +934,7 @@ def hosp_journ_elias(reg):
 #hosp_journ_elias("Nouvelle-Aquitaine")
 
 
-# In[29]:
+# In[14]:
 
 
 def rea_journ(region):
@@ -816,7 +1079,7 @@ def rea_journ(region):
 #rea_journ("Auvergne-Rhône-Alpes")
 
 
-# In[30]:
+# In[15]:
 
 
 def dc_journ(region): 
@@ -931,7 +1194,7 @@ def dc_journ(region):
     print("> " + name_fig)
 
 
-# In[31]:
+# In[16]:
 
 
 
@@ -1036,7 +1299,14 @@ def saturation_rea_journ(region):
     return df_saturation.values[-1]
 
 
-# In[32]:
+# In[17]:
+
+
+for reg in regions:
+    hosp_statut_vaccinal(reg)
+
+
+# In[18]:
 
 
 import cv2
@@ -1072,7 +1342,7 @@ with open(PATH_STATS + 'saturation_rea_regions.json', 'w') as outfile:
     json.dump(dict_saturation, outfile)
 
 
-# In[ ]:
+# In[19]:
 
 
 n_tot=4
@@ -1225,7 +1495,7 @@ for i in range(0, n_tot):
     fig.write_image(PATH+"images/charts/france/evolution_regs/{}_{}.jpeg".format("evolution_regs", i), scale=3, width=1000, height=900)
 
 
-# In[ ]:
+# In[20]:
 
 
 """for reg in regions:
@@ -1240,7 +1510,7 @@ for i in range(0, n_tot):
 """
 
 
-# In[ ]:
+# In[21]:
 
 
 """print("<!-- wp:buttons --><div class=\"wp-block-buttons\">\n")

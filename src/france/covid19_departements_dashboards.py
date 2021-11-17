@@ -99,6 +99,14 @@ df_departements_lits = df_departements.merge(lits_reas, left_on="departmentName"
 # In[8]:
 
 
+data.download_donnees_vaccination_par_tranche_dage_type_de_vaccin_et_departement()
+df_vaccination = data.import_donnees_vaccination_par_tranche_dage_type_de_vaccin_et_departement()
+df_vaccination = df_vaccination[df_vaccination["libelle_classe_age"] != "Tout âge"]
+
+
+# In[9]:
+
+
 def cas_journ(departement):
 
     df_incid_dep = df_incid_departements[df_incid_departements["departmentName"] == departement]
@@ -248,7 +256,7 @@ def cas_journ(departement):
 #cas_journ("Savoie")
 
 
-# In[9]:
+# In[10]:
 
 
 def nombre_variants(departement):
@@ -260,47 +268,24 @@ def nombre_variants(departement):
     fig = go.Figure()
     n_days = len(df_variants_dep)
 
-    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_501Y_V1.values/100
+    y=df_incid_dep["P_rolling"].values[-n_days:] * (100 - df_variants_dep.tx_C1.values)/100
     proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
     fig.add_trace(
         go.Scatter(
             x=df_variants_dep.jour,
             y=y,
-            name="<b>Variant UK </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            name="<b>Autres </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
             stackgroup='one'
         )
     )
 
-    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_501Y_V2_3.values/100
+    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.tx_C1.values/100
     proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
     fig.add_trace(
         go.Scatter(
             x=df_variants_dep.jour,
             y=y,
-            name="<b>Variants SA + BZ </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
-            showlegend=True,
-            stackgroup='one'
-        )
-    )
-
-    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_IND.values/100
-    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
-    fig.add_trace(
-        go.Scatter(
-            x=df_variants_dep.jour,
-            y=y,
-            name="<b>Variants indéterminés </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
-            showlegend=True,
-            stackgroup='one'
-        )
-    )
-    y=df_incid_dep["P_rolling"].values[-n_days:] * df_variants_dep.Prc_susp_ABS.values/100
-    proportion = str(round(y[-1]/df_incid_dep["P_rolling"].values[-1]*100, 1)).replace(".", ",")
-    fig.add_trace(
-        go.Scatter(
-            x=df_variants_dep.jour,
-            y=y,
-            name="<b>Souche classique </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
+            name="Mutation L452R, dont <b>Delta </b><br>" + str(nbWithSpaces(y[-1])) + " cas (" + proportion + " %)",
             showlegend=True,
             stackgroup='one'
         )
@@ -323,14 +308,14 @@ def nombre_variants(departement):
                             y=1.1,
                             xref='paper',
                             yref='paper',
-                            text='Date : 08/03/21. Données : Santé publique France. Auteur : @guillaumerozier - covidtracker.fr.',
+                            text='Date : {}. Données : Santé publique France. Auteur : @guillaumerozier - covidtracker.fr.'.format(datetime.strptime(max(dates), '%Y-%m-%d').strftime('%d %B %Y')),
                             showarrow = False
                         )]
     )
     fig.write_image(PATH+"images/charts/france/departements_dashboards/{}.jpeg".format("variants_nombre_"+departement), scale=1.5, width=750, height=500)
 
 
-# In[10]:
+# In[11]:
 
 
 """import numpy as np
@@ -600,7 +585,7 @@ def cas_journ_departements_couvre_feu(departements):
 cas_journ_departements_couvre_feu(departements)"""
 
 
-# In[11]:
+# In[12]:
 
 
 """import numpy as np
@@ -834,7 +819,7 @@ def cas_journ_departements_couvre_feu_hosp(departements):
 cas_journ_departements_couvre_feu_hosp(departements)"""
 
 
-# In[12]:
+# In[13]:
 
 
 def incid_dep(departement):
@@ -972,7 +957,71 @@ def incid_dep(departement):
 #incid_dep("Savoie")
 
 
-# In[13]:
+# In[14]:
+
+
+def comparaison_cas_dc(departement):
+    df_incid_dep = df_incid_departements[df_incid_departements["departmentName"] == departement]
+    df_dep = df_new_departements[df_new_departements["departmentName"] == departement]
+    
+    y1 = df_incid_dep.incidence
+    y2 = (df_dep.incid_dc/df_dep.departmentPopulation).rolling(window=7).mean().shift(-12)
+
+    coef_normalisation = 50000000 #y1.max()/y2.max()
+    max_y = math.ceil(max(y1.max(), y2.max()*coef_normalisation)*1.1 / 100) * 100
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_incid_dep.jour,
+        y=y1,
+        name="Cas pour 100 k",
+        marker_color='rgb(8, 115, 191)',
+        fillcolor="rgba(8, 115, 191, 0.3)",
+        fill='tozeroy'))
+    fig.add_trace(go.Scatter(
+        x=df_incid_dep.jour,
+        y=-y1,
+        name="Miroir des cas",
+        marker_color='rgba(8, 115, 191, 0.2)',
+        line=dict(
+            dash="dot")
+    ))
+    fig.add_trace(go.Scatter(
+        x=df_dep.jour,
+        y=-y2*coef_normalisation,
+        marker_color='black',
+        fillcolor="rgba(0,0,0,0.3)",
+        name="Décès hospitaliers<br>décalés de 12 j.<br>pour {} Mio".format(round(coef_normalisation/1000000)),
+        fill='tozeroy'))
+    fig.update_yaxes(range=[-max_y, max_y], tickvals=[-max_y, -max_y/2, 0, max_y/2, max_y], ticktext=[max_y, max_y/2, 0, max_y/2, max_y])
+    fig.update_layout(
+        title={
+                    'text': "Cas vs. Décès hospitaliers - {}".format(departement),
+                    'y':0.97,
+                    'x':0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top'},
+        titlefont = dict(
+                        size=30),
+        annotations = [
+                            dict(
+                                x=0.5,
+                                y=1.12,
+                                xref='paper',
+                                yref='paper',
+                                font=dict(size=14),
+                                text="Cas pour 100 000 habitants et décès hospitaliers avancés de 12 j. pour {} Millions d'habitants<br>{} - @GuillaumeRozier - covidtracker.fr".format(round(coef_normalisation/1000000), datetime.strptime(df.jour.max(), '%Y-%m-%d').strftime('%d %B %Y')),#'Date : {}. Source : Santé publique France. Auteur : GRZ - covidtracker.fr.'.format(),                    showarrow = False
+                                showarrow=False
+                            ),
+                            ]
+    )
+
+    fig.write_image(PATH + "images/charts/france/departements_dashboards/comparaison_cas_dc_{}.jpeg".format(departement), scale=2, width=900, height=600)
+    #plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/{}.html'.format(name_fig), auto_open=False)
+#comparaison_cas_dc("Pyrénées-Orientales")
+
+
+# In[15]:
 
 
 def hosp_journ(departement):   
@@ -1123,7 +1172,7 @@ def hosp_journ(departement):
     print("> " + name_fig)
 
 
-# In[14]:
+# In[16]:
 
 
 def hosp_comparaison_vagues(departement):   
@@ -1285,7 +1334,7 @@ def hosp_comparaison_vagues(departement):
 #hosp_comparaison_vagues("Savoie")
 
 
-# In[15]:
+# In[17]:
 
 
 def hosp_journ_elias(dep):
@@ -1576,7 +1625,7 @@ def hosp_journ_elias(dep):
 #hosp_journ_elias("Savoie")
 
 
-# In[16]:
+# In[18]:
 
 
 def rea_journ(departement):
@@ -1722,7 +1771,7 @@ def rea_journ(departement):
 #rea_journ("Isère")
 
 
-# In[17]:
+# In[19]:
 
 
 def dc_journ(departement): 
@@ -1839,7 +1888,7 @@ def dc_journ(departement):
 #dc_journ("Paris")
 
 
-# In[18]:
+# In[20]:
 
 
 
@@ -1931,7 +1980,14 @@ def saturation_rea_journ(dep):
     return df_saturation.values[-1]
 
 
-# In[19]:
+# In[21]:
+
+
+#for dep in departements:
+    #comparaison_cas_dc(dep)
+
+
+# In[22]:
 
 
 import cv2
@@ -1946,7 +2002,6 @@ os.mkdir(PATH+"images/charts/france/covidep/higher_high")
 stats = {"higher_low": [], "higher_high": [], "lower_low": [], "lower_high": [], "update": dates[-1][-2:] + "/" + dates[-1][-5:-3]}
 
 for dep in departements:
-    #GOTO
     hosp_journ_elias(dep)
     class_dep = incid_dep(dep)
     stats[class_dep] += [dep]
@@ -1955,6 +2010,7 @@ for dep in departements:
     rea_journ(dep)
     dc_journ(dep)
     hosp_comparaison_vagues(dep)
+    comparaison_cas_dc(dep)
     
     im1 = cv2.imread(PATH+'images/charts/france/departements_dashboards/cas_journ_{}.jpeg'.format(dep))
     im2 = cv2.imread(PATH+'images/charts/france/departements_dashboards/hosp_journ_{}.jpeg'.format(dep))
@@ -1978,7 +2034,7 @@ with open(PATH + 'images/charts/france/covidep/stats.json', 'w') as outfile:
     
 
 
-# In[20]:
+# In[23]:
 
 
 for dep in departements:
@@ -1986,7 +2042,7 @@ for dep in departements:
     nombre_variants(dep)
 
 
-# In[21]:
+# In[24]:
 
 
 with open(PATH_STATS + 'incidence_departements.json', 'r') as f:
@@ -2000,7 +2056,7 @@ with open(PATH_STATS + 'incidence_departements.json', 'w') as outfile:
     json.dump(incidence_departements, outfile)
 
 
-# In[22]:
+# In[25]:
 
 
 n_tot=1
@@ -2229,7 +2285,7 @@ for i in range(0, n_tot):
             plotly.offline.plot(fig, filename = PATH + 'images/html_exports/france/evolution_deps/evolution_deps_0.html', auto_open=False)
 
 
-# In[23]:
+# In[26]:
 
 
 #import glob
@@ -2240,18 +2296,21 @@ for (folder, n, fps) in [("evolution_deps", n_tot, 3)]:
     img_array = []
     for i in range(n-1, 0-1, -1):
         print(i)
-        img = cv2.imread((PATH + "images/charts/france/{}/evolution_deps_{}.jpeg").format(folder, dates_incid[-(i+1)]))
-        height, width, layers = img.shape
-        size = (width,height)
-        img_array.append(img)
+        try:
+            img = cv2.imread((PATH + "images/charts/france/{}/evolution_deps_{}.jpeg").format(folder, dates_incid[-(i+1)]))
+            height, width, layers = img.shape
+            size = (width,height)
+            img_array.append(img)
 
-        if i==-n:
-            for k in range(4):
-                img_array.append(img)
+            if i==-n:
+                for k in range(4):
+                    img_array.append(img)
 
-        if i==-1:
-            for k in range(12):
-                img_array.append(img)
+            if i==-1:
+                for k in range(12):
+                    img_array.append(img)
+        except:
+            print("image manquante")
 
     out = cv2.VideoWriter(PATH + 'images/charts/france/{}/evolution_deps.mp4'.format(folder),cv2.VideoWriter_fourcc(*'MP4V'), fps, size)
 
@@ -2268,7 +2327,7 @@ for (folder, n, fps) in [("evolution_deps", n_tot, 3)]:
         print("error conversion h265")
 
 
-# In[ ]:
+# In[27]:
 
 
 """for idx,dep in enumerate(departements):
@@ -2284,7 +2343,7 @@ for (folder, n, fps) in [("evolution_deps", n_tot, 3)]:
 """
 
 
-# In[ ]:
+# In[28]:
 
 
 """#print("<!-- wp:buttons --><div class=\"wp-block-buttons\">\n")
